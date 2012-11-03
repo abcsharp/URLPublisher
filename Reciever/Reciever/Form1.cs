@@ -50,7 +50,6 @@ namespace Reciever
 					client.Connect(maskedTextBox1.Text.Replace(" ",""),port);
 				}catch(Exception){
 					MessageBox.Show("接続に失敗しました。","",MessageBoxButtons.OK,MessageBoxIcon.Error);
-					client.Close();
 				}
 				maskedTextBox1.Enabled=!client.Connected;
 				timer1.Enabled=client.Connected;
