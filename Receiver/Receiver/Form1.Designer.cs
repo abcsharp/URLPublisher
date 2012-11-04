@@ -1,4 +1,4 @@
-﻿namespace Reciever
+﻿namespace Receiver
 {
 	partial class Form1
 	{
@@ -28,6 +28,7 @@
 		private void InitializeComponent()
 		{
 			this.components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
 			this.maskedTextBox1 = new System.Windows.Forms.MaskedTextBox();
 			this.button1 = new System.Windows.Forms.Button();
 			this.timer1 = new System.Windows.Forms.Timer(this.components);
@@ -66,10 +67,11 @@
 			this.Controls.Add(this.button1);
 			this.Controls.Add(this.maskedTextBox1);
 			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;
 			this.Name = "Form1";
-			this.Text = "URLPublisher(Reciever)";
+			this.Text = "URLPublisher(Receiver)";
 			this.ResumeLayout(false);
 			this.PerformLayout();
 

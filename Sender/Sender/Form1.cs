@@ -7,9 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using System.Net.Sockets;
 using System.Net;
+using System.Net.Sockets;
+using System.Net.NetworkInformation;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace Sender
 {
@@ -18,27 +20,38 @@ namespace Sender
 		private TcpListener listener;
 		private const int port=8623;
 		private List<TcpClient> connectedClients;
+		private bool commandMode;
 
 		public Form1()
 		{
 			InitializeComponent();
 			connectedClients=new List<TcpClient>();
-			listener=new TcpListener(IPAddress.Parse("127.0.0.1"),port);
+			listener=new TcpListener(IPAddress.Parse("0.0.0.0"),port);
 			listener.Start();
+			commandMode=false;
 		}
 
 		private void Form1_Load(object sender,EventArgs e)
 		{
-			var ipv4AddressBytes=from ip in Dns.GetHostAddresses(Dns.GetHostName())
-								 where ip.GetAddressBytes().Length==4 select ip.GetAddressBytes();
-			var localAddressBytes=from bytes in ipv4AddressBytes
-								  where
-								  bytes[0]==10||
-								  (bytes[0]==172&&bytes[1]>=16&&bytes[1]<=31)||
-								  (bytes[0]==192&&bytes[1]==168)
-								  select bytes;
-			var localAddressString=string.Join(".",localAddressBytes.ToList()[0]);
-			this.Text=this.Text+"@"+localAddressString;
+			var unicastAddresses=from i in NetworkInterface.GetAllNetworkInterfaces()
+								 where i.GetIPProperties().GatewayAddresses.Count>0
+								 select i.GetIPProperties().UnicastAddresses;
+			var localAddressBytes=new List<byte[]>();
+			foreach(UnicastIPAddressInformationCollection ipList in unicastAddresses)
+				foreach(UnicastIPAddressInformation info in ipList)
+					localAddressBytes.Add(info.Address.GetAddressBytes());
+			var localAddress=from bytes in localAddressBytes
+							 where
+							 bytes[0]==10||
+							 (bytes[0]==172&&bytes[1]>=16&&bytes[1]<=31)||
+							 (bytes[0]==192&&bytes[1]==168)
+							 select bytes;
+			if(localAddress.Count()==0){
+				MessageBox.Show("ネットワークに接続していません。","",MessageBoxButtons.OK,MessageBoxIcon.Error);
+				Close();
+			}
+			var addressString=string.Join(".",localAddress.ToList()[0]);
+			this.Text=this.Text+"@"+addressString;
 			timer1.Enabled=true;
 		}
 
@@ -48,6 +61,7 @@ namespace Sender
 			Publish(textBox1.Text);
 			textBox1.Text="";
 			textBox1.Enabled=true;
+			textBox1.Focus();
 		}
 
 		private void Form1_FormClosing(object sender,FormClosingEventArgs e)
@@ -84,23 +98,56 @@ namespace Sender
 			button1_Click(null,null);
 		}
 
-		private void Publish(string url)
+		private void Publish(string text)
 		{
-			var data=Encoding.UTF8.GetBytes(url);
-			for(int i=0;i<connectedClients.Count;i++)
-				if(connectedClients[i].Connected){
-					try{
-						connectedClients[i].GetStream().Write(data,0,data.Length);
-					}catch(IOException){
+			if(text!=""&&!text.All(c=>c==' '||c=='\t')){
+				if(commandMode) text=ParseCommand(text);
+				var data=Encoding.UTF8.GetBytes(text);
+				for(int i=0;i<connectedClients.Count;i++)
+					if(connectedClients[i].Connected){
+						try{
+							connectedClients[i].GetStream().Write(data,0,data.Length);
+						}catch(Exception){
+							connectedClients[i].Close();
+							connectedClients[i]=null;
+						}
+					}else{
 						connectedClients[i].Close();
 						connectedClients[i]=null;
 					}
-				}else{
-					connectedClients[i].Close();
-					connectedClients[i]=null;
-				}
-			connectedClients.RemoveAll(client=>client==null);
+				connectedClients.RemoveAll(client=>client==null);
+			}
+			if(commandMode){
+				this.Text=this.Text.Replace("(cmd)","");
+				commandMode=false;
+			}
 			return;
+		}
+
+		private string ParseCommand(string text)
+		{
+			int index=0;
+			for(;text[index]==' '||text[index]=='\t';index++) continue;
+			int start=index;
+			var delimiter=text[start]=='\"'?'\"':' ';
+			for(index++;text[index]!=delimiter;index++) continue;
+			index+=(delimiter=='\"'?1:0);
+			var file=text.Substring(start,index-start);
+			for(index++;index<text.Length&&(text[index]==' '||text[index]=='\t');index++) continue;
+			string args="";
+			if(index<text.Length){
+				var str=text.Substring(index,text.Length-index);
+				if(!str.All(c=>c==' '||c=='\t')) args=str;
+			}
+			return file+"\n"+args;
+		}
+
+		private void Form1_KeyDown(object sender,KeyEventArgs e)
+		{
+			if(e.Control&&e.KeyCode==Keys.E){
+				if(!commandMode) this.Text=this.Text+"(cmd)";
+				commandMode=true;
+			}
 		}
 	}
 }

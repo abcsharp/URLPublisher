@@ -11,7 +11,7 @@ using System.Net.Sockets;
 using System.Diagnostics;
 using System.IO;
 
-namespace Reciever
+namespace Receiver
 {
 	public partial class Form1 : Form
 	{
@@ -32,7 +32,12 @@ namespace Reciever
 				if(message=="Hello."){
 					MessageBox.Show("接続に成功しました。","",MessageBoxButtons.OK,MessageBoxIcon.Information);
 				}else{
-					Process.Start(message);
+					var commands=message.Split(new[]{'\n'});
+					try{
+						if(commands.Length==1) Process.Start(commands[0]);
+						else Process.Start(commands[0],commands[1]);
+					}catch(Exception){
+					}
 				}
 			}
 		}
